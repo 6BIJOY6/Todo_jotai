@@ -1,70 +1,170 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Button,
+  FlatList,
+  TouchableOpacity,
+} from "react-native";
+import React from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { CheckBox } from "react-native-elements";
+import {  atom, useAtom } from "jotai";
+import { atomWithStorage } from 'jotai/utils'
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+
+
+interface TodoItems {
+  id: string;
+  text: string;
+  compeleted: boolean;
+}
+// atom define
+const todoAtoms = atomWithStorage<TodoItems[]>("todos",[])
+const newTodoAtom = atom("")
+const editingIdAtom = atom<string|null>(null)
+const editingTextAtom = atom("")
+
 
 export default function HomeScreen() {
+  const [todos, setTodos] = useAtom(todoAtoms);
+  const [newTodo, setNewTodo] = useAtom(newTodoAtom);
+  const [editingId, setEditingId] = useAtom(editingIdAtom);
+  const [editedText, setEditedText] = useAtom(editingTextAtom);
+  const addTodo = () => {
+    if (newTodo.trim()) {
+      setTodos((p) => [
+        ...p,
+        { id: Math.random().toString(), text: newTodo, compeleted: false },
+      ]);
+      setNewTodo("");
+    } else {
+      alert("plz enter at least one letter");
+    }
+  };
+  const toggleTodo = (id: string) => {
+    const updatedTodos = todos.map((todo) => {
+      if (todo.id === id) {
+        return {
+          ...todo,
+          compeleted: !todo.compeleted,
+        };
+      } else {
+        return todo;
+      }
+    });
+
+    setTodos(updatedTodos);
+  };
+
+  const deleteTodo = (id: string) => {
+    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+  };
+  const saveEditTodo = (id: string, editedText: string) => {
+    if (editedText.trim()) {
+      const updatedTodos = todos.map((todo) =>
+        todo.id === id ? { ...todo, text: editedText } : todo
+      );
+      setTodos(updatedTodos);
+      setEditingId(null);
+      setEditedText("");
+    } else {
+      alert("Please enter at least one letter.");
+    }
+  };
+  const startEditTodo = (id: string) => {
+    setEditingId(id);
+  };
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>My Todo App</Text>
+      </View>
+      <TextInput
+        style={styles.input}
+        placeholder="Add a new task"
+        value={newTodo}
+        onChangeText={setNewTodo}
+      />
+      <Button title="Add" onPress={addTodo} />
+      <FlatList
+        data={todos}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.todoItem}>
+            <CheckBox
+              checked={item.compeleted}
+              onPress={() => toggleTodo(item.id)}
+            />
+            {editingId === item.id ? (
+              <>
+                <TextInput
+                  style={styles.editInput}
+                  value={editedText}
+                  onChangeText={(Text) => setEditedText(Text)}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  onPress={() => saveEditTodo(item.id, editedText)}
+                >
+                  <Ionicons name="save" size={24} color="blue" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text
+                style={{
+                  textDecorationLine: item.compeleted ? "line-through" : "none",
+                }}
+              >
+                {item.text}
+              </Text>
+            )}
+            <TouchableOpacity onPress={() => deleteTodo(item.id)}>
+              <Ionicons name="trash" size={24} color="red" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => startEditTodo(item.id)}>
+              <Ionicons name="create" size={24} color="blue" />
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    padding: 16,
+    marginTop: 40,
+    backgroundColor:'pink',
   },
-  stepContainer: {
-    gap: 8,
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 8,
+    marginBottom: 16,
+  },
+  todoItem: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  editInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  header: {
+    backgroundColor: "#3498db",
+    padding: 18,
+    alignItems: "center",
+    margin: 10,
+  },
+  headerText: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "bold",
   },
 });
